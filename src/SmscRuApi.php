@@ -2,19 +2,19 @@
 
 namespace NotificationChannels\SmscRu;
 
-use DomainException;
 use GuzzleHttp\Client as HttpClient;
+use Illuminate\Support\Arr;
 use NotificationChannels\SmscRu\Exceptions\CouldNotSendNotification;
 
 class SmscRuApi
 {
-    const FORMAT_JSON = 3;
-
-    /** @var string */
-    protected $apiUrl = 'https://smsc.ru/sys/send.php';
+    public const FORMAT_JSON = 3;
 
     /** @var HttpClient */
-    protected $httpClient;
+    protected $client;
+
+    /** @var string */
+    protected $endpoint;
 
     /** @var string */
     protected $login;
@@ -25,25 +25,24 @@ class SmscRuApi
     /** @var string */
     protected $sender;
 
-    public function __construct($login, $secret, $sender)
-    {
-        $this->login = $login;
-        $this->secret = $secret;
-        $this->sender = $sender;
+    /** @var array */
+    protected $extra;
 
-        $this->httpClient = new HttpClient([
+    public function __construct(array $config)
+    {
+        $this->login = Arr::get($config, 'login');
+        $this->secret = Arr::get($config, 'secret');
+        $this->sender = Arr::get($config, 'sender');
+        $this->endpoint = Arr::get($config, 'host', 'https://smsc.ru/').'sys/send.php';
+
+        $this->extra = Arr::get($config, 'extra', []);
+
+        $this->client = new HttpClient([
             'timeout' => 5,
             'connect_timeout' => 5,
         ]);
     }
 
-    /**
-     * @param  array  $params
-     *
-     * @return array
-     *
-     * @throws CouldNotSendNotification
-     */
     public function send($params)
     {
         $base = [
@@ -54,19 +53,19 @@ class SmscRuApi
             'fmt'     => self::FORMAT_JSON,
         ];
 
-        $params = array_merge($base, $params);
+        $params = \array_merge($base, \array_filter($params), $this->extra);
 
         try {
-            $response = $this->httpClient->post($this->apiUrl, ['form_params' => $params]);
+            $response = $this->client->request('POST', $this->endpoint, ['form_params' => $params]);
 
-            $response = json_decode((string) $response->getBody(), true);
+            $response = \json_decode((string) $response->getBody(), true);
 
             if (isset($response['error'])) {
-                throw new DomainException($response['error'], $response['error_code']);
+                throw new \DomainException($response['error'], $response['error_code']);
             }
 
             return $response;
-        } catch (DomainException $exception) {
+        } catch (\DomainException $exception) {
             throw CouldNotSendNotification::smscRespondedWithAnError($exception);
         } catch (\Exception $exception) {
             throw CouldNotSendNotification::couldNotCommunicateWithSmsc($exception);

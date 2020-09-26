@@ -1,4 +1,4 @@
-# Smsc notifications channel for Laravel 5.3
+# Smsc notifications channel for Laravel 5.3+
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/laravel-notification-channels/smsc-ru.svg?style=flat-square)](https://packagist.org/packages/laravel-notification-channels/smsc-ru)
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
@@ -9,14 +9,14 @@
 [![Code Coverage](https://img.shields.io/scrutinizer/coverage/g/laravel-notification-channels/smsc-ru/master.svg?style=flat-square)](https://scrutinizer-ci.com/g/laravel-notification-channels/smsc-ru/?branch=master)
 [![Total Downloads](https://img.shields.io/packagist/dt/laravel-notification-channels/smsc-ru.svg?style=flat-square)](https://packagist.org/packages/laravel-notification-channels/smsc-ru)
 
-This package makes it easy to send notifications using [smsc.ru](//smsc.ru) (aka СМС–Центр) with Laravel 5.3.
+This package makes it easy to send notifications using [smsc.ru](https://smsc.ru) (aka СМС–Центр) with Laravel 5.3+.
 
 ## Contents
 
 - [Installation](#installation)
     - [Setting up the SmscRu service](#setting-up-the-SmscRu-service)
 - [Usage](#usage)
-    - [Available Message methods](#available-message-methods)
+    - [Available Message methods](#available-methods)
 - [Changelog](#changelog)
 - [Testing](#testing)
 - [Security](#security)
@@ -27,13 +27,19 @@ This package makes it easy to send notifications using [smsc.ru](//smsc.ru) (aka
 
 ## Installation
 
-You can install the package via composer:
+Install this package with Composer:
 
 ```bash
 composer require laravel-notification-channels/smsc-ru
 ```
 
-Then you must install the service provider:
+If you're using Laravel 5.x you'll also need to specify a version constraint:
+
+```bash
+composer require laravel-notification-channels/smsc-ru -v 2.0.3
+```
+
+The service provider gets loaded automatically. Or you can do this manually:
 ```php
 // config/app.php
 'providers' => [
@@ -52,7 +58,31 @@ Add your SmscRu login, secret key (hashed password) and default sender name (or 
 'smscru' => [
     'login'  => env('SMSCRU_LOGIN'),
     'secret' => env('SMSCRU_SECRET'),
-    'sender' => 'John_Doe'
+    'sender' => 'John_Doe',
+    'extra'  => [
+        // any other API parameters
+        // 'tinyurl' => 1
+    ],
+],
+...
+```
+
+> If you want use other host than `smsc.ru`, you MUST set custom host WITH trailing slash.
+
+```
+// .env
+...
+SMSCRU_HOST=http://www1.smsc.kz/
+...
+```
+
+```php
+// config/services.php
+...
+'smscru' => [
+    ...
+    'host' => env('SMSCRU_HOST'),
+    ...
 ],
 ...
 ```
@@ -75,8 +105,18 @@ class AccountApproved extends Notification
 
     public function toSmscRu($notifiable)
     {
-        return SmscRuMessage()::create("Task #{$notifiable->id} is complete!");
+        return SmscRuMessage::create("Task #{$notifiable->id} is complete!");
     }
+}
+```
+
+In your notifiable model, make sure to include a `routeNotificationForSmscru()` method, which returns a phone number
+or an array of phone numbers.
+
+```php
+public function routeNotificationForSmscru()
+{
+    return $this->phone;
 }
 ```
 
@@ -84,7 +124,9 @@ class AccountApproved extends Notification
 
 `from()`: Sets the sender's name or phone number.
 
-`content()`: Sets a content of the notification message.
+`content()`: Set a content of the notification message.
+
+`sendAt()`: Set a time for scheduling the notification message.
 
 ## Changelog
 
